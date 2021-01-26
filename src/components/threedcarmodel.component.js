@@ -75,7 +75,11 @@ const ShowCar = props => {
         }
     }
     
-    // Implement setNewCarItem function here
+        function setNewCarItem(event){
+        let selectedCarItem = event.target.textContent
+        console.log("SelectedCar onClick: ", selectedCarItem)
+        setCarSelected(selectedCarItem.toString())
+    }
   
     const carListItems = carList.map((carItem)=>{
         return (
