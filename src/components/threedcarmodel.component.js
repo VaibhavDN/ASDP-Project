@@ -45,6 +45,18 @@ const ShowCar = props => {
         }
     }, [objsize, carSelected, props.carConfig])
     
+    const RenderCar = (props) => {
+    const { scene, animations } = useLoader(GLTFLoader, "carModels/" + props.carName + "/scene.gltf") //props.carName
+    console.log("Car Rendered: ",  props.carName)
+    console.log('Scene: ', scene)
+    console.log('Animations: ', animations)
+
+    const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene])
+    
+    useEffect(() => animations.forEach(clip => mixer.clipAction(clip).play()), [animations, mixer])
+
+    return <primitive object={scene} />
+    }
     
     function filterFunction(){
         let input = document.getElementById("filterCarSelectList")
@@ -72,6 +84,45 @@ const ShowCar = props => {
             </li>
         )
     })
+    
+    console.log("cameraZoom: ", cameraZoom)
+
+    let zoomlevel = parseInt(window.innerWidth/ cameraZoom)
+    let cameraConfig = { zoom: 1*zoomlevel+19, position: [80, 50, 200] }
+    console.log("cz: ", cameraConfig.zoom)
+            
+    <div className="col-* showCarDiv">
+                    <div>
+                        <ShowCarName carName={carSelected}/>
+                    </div>
+                    <center>
+                    <Canvas style={{ height:window.innerHeight/1.5, width:window.innerWidth/1.95, zoom: 1, backgroundColor:"#EEE" }} orthographic camera={cameraConfig}>
+                        <ambientLight />
+                        <directionalLight intensity={lightInt} position={[0, 0, -45]} />
+                        <directionalLight intensity={lightInt} position={[0, 0, -135]} />
+                        <directionalLight intensity={lightInt} position={[45, 0, 0]} />
+                        <directionalLight intensity={lightInt} position={[135, 0, 0]} />
+                        <directionalLight intensity={lightInt} position={[-45, 0, 0]} />
+                        <directionalLight intensity={lightInt} position={[-135, 0, 0]} />
+                        <directionalLight intensity={lightInt} position={[0, 45, 0]} />
+                        <directionalLight intensity={lightInt} position={[0, 135, 0]} />
+                        <directionalLight intensity={lightInt} position={[0, 0, 45]} />
+                        <directionalLight intensity={lightInt} position={[0, 0, 135]} />
+                        <directionalLight intensity={lightInt} position={[0, 0, -45]} />
+                        <directionalLight intensity={lightInt} position={[0, 0, -135]} />
+                        <rectAreaLight width={3} height={3} color={"#FFF"} intensity={10} 
+                            position={[-2, 0, 5]} lookAt={[0, 0, 0]} penumbra={1} castShadow 
+                        />
+
+                        <OrbitControls />
+                        <camera position={[0, 100, 100]} />
+
+                        <Suspense fallback={<Loading/>}>
+                            <RenderCar carName={carSelected} />
+                        </Suspense>
+                    </Canvas>
+                    </center>
+                </div>
     
     <div className="col-* statDiv">
                     <center>
