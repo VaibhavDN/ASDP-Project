@@ -1,10 +1,74 @@
 import React, {useState, useEffect, useRef, useMemo} from 'react'
 import ReactDOM from 'react-dom'
+import firebase from 'firebase/app'
+import 'firebase/database'
+import { Canvas, useLoader, useFrame } from 'react-three-fiber'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { Suspense } from 'react'
+import * as THREE from "three"
+import { OrbitControls } from "drei"
 import "../CSS/threedcarmodel.css"
 
+console.log = ()=>{
+    //Print nothing
+}
+
+const firebaseConfig = {
+    //Firebase Config
+}
+
+firebase.initializeApp(firebaseConfig)
+
+function Loading() {
+    const mesh = useRef()
+    useFrame(() => (mesh.current.rotation.x = mesh.current.rotation.y += 0.01))
+
+    return (
+        <mesh visible position={[0, 0, 0]} rotation={[0, 0, 0]} ref={mesh}>
+            <boxBufferGeometry attach="geometry" args={[1, 1, 1]} />
+            <meshStandardMaterial
+                attach="material"
+                transparent
+                color="#2AA"
+                opacity={0.8}
+                roughness={0}
+                metalness={0.2}
+            />
+        </mesh>
+    )
+}
+
+const ShowCarName = props => {
+    //console.log(props.carName)
+    return(
+        <div>
+            <h5 className="vehicleNameHeading"> Vehicle Name: {props.carName} </h5>
+            Scroll/Pinch to zoom in/out
+        </div>
+    )
+}
+
+const RenderCar = (props) => {
+    const { scene, animations } = useLoader(GLTFLoader, "carModels/" + props.carName + "/scene.gltf") //props.carName
+    console.log("Car Rendered: ",  props.carName)
+    console.log('Scene: ', scene)
+    console.log('Animations: ', animations)
+
+    const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene])
+    
+    useEffect(() => animations.forEach(clip => mixer.clipAction(clip).play()), [animations, mixer])
+
+    return <primitive object={scene} />
+}
+
 const ShowCar = props => {
-        
-      const [carStats, setCarStats] = useState({
+    //TODO: Find a better way 
+    const [lightInt, setLightInt] = useState(2)
+    const [carSelected, setCarSelected] = useState("polestar 1")
+    const [cameraZoom, setCameraZoom] = useState(25)
+    const [carList, setCarList] = useState([])
+    const [objsize, setObjsize] = useState(0)
+    const [carStats, setCarStats] = useState({
         bhp: 0.0,
         mileage: 0.0,
         engine: 0.0,
@@ -12,7 +76,14 @@ const ShowCar = props => {
         transmission: "automatic",
     })
 
-          useEffect(()=>{
+    let newObjSize = Object.keys(props.carConfig).length
+    console.log("props ", props.carConfig, newObjSize)
+
+    if(newObjSize !== objsize){
+        setObjsize(newObjSize)
+    }
+
+    useEffect(()=>{
         setCarList(Object.keys(props.carConfig))
 
         let list = Object.keys(props.carConfig)
@@ -44,20 +115,7 @@ const ShowCar = props => {
             })
         }
     }, [objsize, carSelected, props.carConfig])
-    
-    const RenderCar = (props) => {
-    const { scene, animations } = useLoader(GLTFLoader, "carModels/" + props.carName + "/scene.gltf") //props.carName
-    console.log("Car Rendered: ",  props.carName)
-    console.log('Scene: ', scene)
-    console.log('Animations: ', animations)
 
-    const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene])
-    
-    useEffect(() => animations.forEach(clip => mixer.clipAction(clip).play()), [animations, mixer])
-
-    return <primitive object={scene} />
-    }
-    
     function filterFunction(){
         let input = document.getElementById("filterCarSelectList")
         let filter = input.value.toUpperCase()
@@ -74,13 +132,13 @@ const ShowCar = props => {
             }
         }
     }
-    
-        function setNewCarItem(event){
+
+    function setNewCarItem(event){
         let selectedCarItem = event.target.textContent
         console.log("SelectedCar onClick: ", selectedCarItem)
         setCarSelected(selectedCarItem.toString())
     }
-  
+
     const carListItems = carList.map((carItem)=>{
         return (
             <li key={carItem} onClick={setNewCarItem}>
@@ -88,14 +146,27 @@ const ShowCar = props => {
             </li>
         )
     })
-    
+
     console.log("cameraZoom: ", cameraZoom)
 
     let zoomlevel = parseInt(window.innerWidth/ cameraZoom)
     let cameraConfig = { zoom: 1*zoomlevel+19, position: [80, 50, 200] }
     console.log("cz: ", cameraConfig.zoom)
-            
-    <div className="col-* showCarDiv">
+
+    return(
+        <div>
+            <div className="headDiv row">
+                <h4>Vehicle Showcase</h4>
+            </div>
+            <div className="row">
+                <div className="col-* listDiv">
+                    <input type="text" id="filterCarSelectList" onKeyUp={filterFunction} placeholder="Search for the vehicle..."/>
+                    <ul id="carSelectList">
+                        {carListItems}
+                    </ul>    
+                </div>
+                
+                <div className="col-* showCarDiv">
                     <div>
                         <ShowCarName carName={carSelected}/>
                     </div>
@@ -127,8 +198,8 @@ const ShowCar = props => {
                     </Canvas>
                     </center>
                 </div>
-    
-    <div className="col-* statDiv">
+
+                <div className="col-* statDiv">
                     <center>
                         <h5>Stats</h5>
                         <div className="vehicleStats">
@@ -141,4 +212,37 @@ const ShowCar = props => {
                         </div>
                     </center>
                 </div>
+            </div>
+        </div>
+    )
 }
+
+const CarModels = ()=>{
+    const [carDetailsStr, setCarDetailsStr] = useState({})
+    let carStr = {}
+    let databaseRef = firebase.database().ref('/')
+
+    useEffect(()=>{
+        databaseRef.on('value', (snapshot)=>{
+            snapshot.forEach((child)=>{
+                let _key = child.key
+                let _value = child.val()
+                carStr[_key] = _value
+                //console.log(_key, JSON.stringify(_value))
+            })
+            setCarDetailsStr(carStr)
+        })
+    }, [])
+
+    //console.log("carObj: ", carDetailsStr)
+
+    return(
+        <div>
+            <ShowCar carConfig={carDetailsStr}/>
+        </div>
+    )
+}
+
+ReactDOM.render(<CarModels/>, document.getElementById('root'))
+
+export default CarModels
